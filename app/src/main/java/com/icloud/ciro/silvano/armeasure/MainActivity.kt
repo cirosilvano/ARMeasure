@@ -1,8 +1,10 @@
 package com.icloud.ciro.silvano.armeasure
 
 import android.content.ContentValues.TAG
+import android.content.Context
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
@@ -21,8 +23,8 @@ import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
-    lateinit var  mArButton: Button
-    lateinit var  txtArEnable:TextView
+    lateinit var mArButton: Button
+    lateinit var txtArEnable:TextView
     lateinit var session:Session
     lateinit var sharedCamera:SharedCamera
     lateinit var cameraId:String
@@ -35,9 +37,7 @@ class MainActivity : AppCompatActivity() {
         txtArEnable=findViewById(R.id.textView)
         //Enable AR-related functionality on ARCore supported devices only.
         maybeEnableArButton()
-        if(isARCoreSupportedAndUpToDate()){
-            createSession()
-        }
+
 
     }
 
@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
             CameraPermissionHelper.requestCameraPermission(this)
             return
         }
+        createSession()
 
     }
     override fun onDestroy() {
@@ -129,11 +130,25 @@ class MainActivity : AppCompatActivity() {
 
     //Creazione della Session
     fun createSession(){
-        session= Session(this,EnumSet.of(Session.Feature.SHARED_CAMERA))
-        val config= Config(session)
-        session.configure(config)
-        sharedCamera=session.sharedCamera
-        cameraId = session.cameraConfig.cameraId
+        if(isARCoreSupportedAndUpToDate()) {
+            session = Session(this, EnumSet.of(Session.Feature.SHARED_CAMERA))
+            val config = Config(session)
+            session.configure(config)
+            sharedCamera = session.sharedCamera
+            cameraId = session.cameraConfig.cameraId
+
+            // Wrap the callback in a shared camera callback.
+            val wrappedCallback = sharedCamera.createARDeviceStateCallback(cameraDeviceCallback, backgroundHandler)
+
+            // Store a reference to the camera system service.
+            val cameraManager = this.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+
+            // Open the camera device using the ARCore wrapped callback.
+            cameraManager.openCamera(cameraId, wrappedCallback, backgroundHandler)
+        }
+        else{
+            throw Exception("ARCore is not supported")
+        }
 
     }
 
